@@ -26,12 +26,12 @@ def test_initialization(client, dn_info, san_info, key_algorithm='RSA', key_size
         logger.error(e)
         logger.debug(traceback.format_exc())
 
-def test_certification(client, dn_info, san_info, key_path, key_password=None):
+def test_certification(client, key_path, old_cert, key_password=None):
     """
     Renew an existing certificate.
     """
     try:
-        cert_file, chain_file = client.certification(dn_info, san_info, key_path, key_password)
+        cert_file, chain_file = client.certification(key_path, key_password=key_password, old_cert=old_cert, implicit_confirm=True, detailed_logging=True)
         logger.info(f"Certificate saved at: {cert_file}")
         logger.info(f"Certificate chain saved at: {chain_file}")
     except Exception as e:
@@ -39,12 +39,12 @@ def test_certification(client, dn_info, san_info, key_path, key_password=None):
         logger.error(e)
         logger.debug(traceback.format_exc())
 
-def test_key_update(client, dn_info, san_info, key_algorithm='RSA', key_size=4096):
+def test_key_update(client):
     """
     Rekey an existing certificate.
     """
     try:
-        cert_file, chain_file = client.keyupdate(dn_info, san_info, key_algorithm, key_size)
+        cert_file, chain_file = client.keyupdate(implicit_confirm=True, detailed_logging=True)
         logger.info(f"Certificate saved at: {cert_file}")
         logger.info(f"Certificate chain saved at: {chain_file}")
     except Exception as e:
@@ -58,9 +58,9 @@ def test_revoke_cert(client, cert_path, reason=0):
     """
     try:
         crypto_utils = CryptoUtils()
-        serial_number, issuer = crypto_utils.get_revocatione_details(cert_path)
-        client.revocation(issuer=issuer, serial=serial_number, reason=reason)
-        logger.info(f"Certificate with serial {serial_number} successfully revoked for reason {reason}")
+        # serial_number, issuer = crypto_utils.get_revocatione_details(cert_path)
+        client.revocation(reason=reason, oldcert=cert_path)
+        logger.info(f"Certificate {cert_path} successfully revoked for reason {reason}")
     except Exception as e:
         logger.error("Failed to revoke certificate")
         logger.error(e)
@@ -78,15 +78,30 @@ def test_retrieve_ca_cert(client):
         logger.error(e)
         logger.debug(traceback.format_exc())
 
+
+def test_retrieve_root_ca_cert(client):
+    """
+    Retrieve root CA certificates.
+    """
+    try:
+        cert_file = client.getrootupdate(newwithnew="rootCa.pem")
+        logger.info(f"CA certificates retrieved and saved at: {cert_file}")
+    except Exception as e:
+        logger.error("Failed to retrieve CA certificates")
+        logger.error(e)
+        logger.debug(traceback.format_exc())
+
 # Usage example
 if __name__ == "__main__":
     ca_server = "127.0.0.1:8000"
     domain = "plc"
-    initialization_path = f"/.well-known/cmp/p/{domain}/initialization/"
+    initialization_path = f"/.well-known/cmp/p/{domain}/initialization/mqtt_client/"
+    #initialization_path = f"/.well-known/cmp/p/{domain}/initialization/"
     revocation_path = f"/.well-known/cmp/p/{domain}/revocation/"
     certification_path = f"/.well-known/cmp/p/{domain}/certification/"
     keyupdate_path = f"/.well-known/cmp/p/{domain}/keyupdate/"
     ca_cert_path = f"/.well-known/cmp/p/{domain}/getcacerts/"
+    root_ca_cert_path = f"/.well-known/cmp/p/{domain}/getrootupdate/"
 
     cert = "./secret_trustpoint/cmp_client_cert.pem"
     key = "./secret_trustpoint/cmp_client_key.pem"
@@ -110,12 +125,20 @@ if __name__ == "__main__":
     #initialization_client = initialize_client(ca_server, initialization_path, cert, key, trusted_cert_chain)
     #test_initialization(initialization_client, dn_info, san_info)
 
-    certification_client = initialize_client(ca_server, certification_path, cert, key, trusted_cert_chain)
-    test_certification(certification_client, dn_info, san_info, key_path="/Users/florianhandke/PycharmProjects/cmp-client/bin/initialization_20240816133220/key.pem")
+    oldcert_key = "./bin/initialization_20240822160755/key.pem"
+    certificate_to_be_updated = "./bin/initialization_20240822160755/cert.pem"
 
-    #keyupdate_client = initialize_client(ca_server, keyupdate_path, cert, key, trusted_cert_chain)
-    #test_key_update(client, dn_info, san_info)
+    #certification_client = initialize_client(ca_server, certification_path, cert=cert, key=key, trusted_cert_chain=trusted_cert_chain)
+    #test_certification(certification_client, key_path="./bin/initialization_20240820220156/key.pem", old_cert=certificate_to_be_updated)
 
-    #revocation_client = initialize_client(ca_server, revocation_path, cert, key, trusted_cert_chain)
-    #test_revoke_cert(revocation_client, "/Users/florianhandke/PycharmProjects/cmp-client/bin/initialization_20240816133220/cert.pem", reason=1)
-    #test_retrieve_ca_cert(client)
+    #keyupdate_client = initialize_client(ca_server, keyupdate_path, cert=certificate_to_be_updated, key=oldcert_key, trusted_cert_chain=trusted_cert_chain)
+    #test_key_update(keyupdate_client)
+
+    revocation_client = initialize_client(ca_server, revocation_path, cert, key, trusted_cert_chain)
+    test_revoke_cert(revocation_client, "./bin/initialization_20240820220156/cert.pem", reason=1)
+
+    #get_ca_certs_client = initialize_client(ca_server, ca_cert_path, cert, key, trusted_cert_chain)
+    #test_retrieve_ca_cert(get_ca_certs_client)
+
+    #get_root_ca_certs_client = initialize_client(ca_server, root_ca_cert_path, cert, key, trusted_cert_chain)
+    #test_retrieve_root_ca_cert(get_root_ca_certs_client)

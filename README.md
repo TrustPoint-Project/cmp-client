@@ -73,11 +73,19 @@ cert_file, chain_file = client.initialization(dn_info, san_info, key_algorithm='
 ```
 ### Renew an Existing Certificate
 ```python
-cert_file, chain_file = client.certification(dn_info, san_info, key_path="/path/to/existing/key.pem")
+cert_file, chain_file = client.certification(key_path, # path to the old key
+                                             old_cert=old_cert) # path to the old cert
 ```
 ### Rekey a Certificate
 ```python
-cert_file, chain_file = client.keyupdate(dn_info, san_info, key_algorithm='RSA', key_size=4096)
+# For key update one needs to provide the old certificate and old key
+client = CMPClient(ca_server=ca_server, 
+                   ca_path=ca_path, 
+                   cert=certificate_to_be_updated, 
+                   key=oldcert_key, 
+                   trusted_cert_chain=trusted_cert_chain)
+
+cert_file, chain_file = client.keyupdate()
 ```
 ### Revoke a Certificate
 ```python
